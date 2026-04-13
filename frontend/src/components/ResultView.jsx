@@ -1,24 +1,28 @@
 import { useState, useEffect } from 'react';
-import axios from 'axios';
-import { Plus, ClipboardList, Copy, Trash2, Users, Layout, XCircle } from 'lucide-react';
+import api from '../api'; // Switched from axios to your custom config
+import { Plus, ClipboardList, Copy, Trash2, Users, Layout, XCircle, Loader2 } from 'lucide-react';
 import RouteGenerator from './RouteGenerator';
 
 export default function ProtocolDashboard() {
-  const [activeTab, setActiveTab] = useState('interviews'); // 'interviews' or 'submissions'
+  const [activeTab, setActiveTab] = useState('interviews'); 
   const [interviews, setInterviews] = useState([]);
   const [submissions, setSubmissions] = useState([]);
   const [isModalOpen, setModalOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   // 1. Fetch data for both interviews and submissions
   const fetchData = async () => {
+    setLoading(true);
     try {
-      const interviewRes = await axios.get('http://localhost:5000/api/interviews/data/stats');
+      const interviewRes = await api.get('/api/interviews/data/stats');
       setInterviews(interviewRes.data.allInterviews || []);
       
-      const submissionRes = await axios.get('http://localhost:5000/api/interviews/data/submissions');
+      const submissionRes = await api.get('/api/interviews/data/submissions');
       setSubmissions(submissionRes.data || []);
     } catch (e) { 
       console.error("Sync Error", e); 
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -26,7 +30,7 @@ export default function ProtocolDashboard() {
   const handleDeleteSubmission = async (id) => {
     if (!window.confirm("Delete this candidate's record?")) return;
     try {
-      await axios.delete(`http://localhost:5000/api/interviews/submission/${id}`);
+      await api.delete(`/api/interviews/submission/${id}`);
       fetchData(); 
     } catch (e) { 
       alert("Delete failed"); 
@@ -35,9 +39,9 @@ export default function ProtocolDashboard() {
 
   // 3. Purge all records (Interviews and Submissions)
   const handlePurge = async () => {
-    if (!window.confirm("Permanently delete all interview records and submissions?")) return;
+    if (!window.confirm("CRITICAL: This will permanently delete ALL interviews and candidate results. Continue?")) return;
     try {
-      await axios.delete('http://localhost:5000/api/interviews/purge');
+      await api.delete('/api/interviews/purge');
       fetchData();
     } catch (e) { 
       alert("Purge failed."); 
@@ -63,7 +67,8 @@ export default function ProtocolDashboard() {
                 : 'border-transparent text-slate-400 hover:text-slate-600'
               }`}
             >
-              <Layout size={16} /> Active Interviews
+              <Layout size={16} /> Protocols 
+              <span className="ml-1 px-1.5 py-0.5 bg-slate-100 text-slate-500 rounded-md text-[10px]">{interviews.length}</span>
             </button>
             <button 
               onClick={() => setActiveTab('submissions')}
@@ -73,7 +78,8 @@ export default function ProtocolDashboard() {
                 : 'border-transparent text-slate-400 hover:text-slate-600'
               }`}
             >
-              <Users size={16} /> Candidate Results
+              <Users size={16} /> Candidates
+              <span className="ml-1 px-1.5 py-0.5 bg-slate-100 text-slate-500 rounded-md text-[10px]">{submissions.length}</span>
             </button>
           </div>
         </div>
@@ -82,13 +88,13 @@ export default function ProtocolDashboard() {
           <button 
             onClick={handlePurge} 
             title="Purge All Data"
-            className="p-3 text-slate-400 hover:text-red-500 border border-slate-200 rounded-xl transition-all bg-white shadow-sm"
+            className="p-3 text-slate-400 hover:text-red-500 border border-slate-200 rounded-xl transition-all bg-white shadow-sm active:scale-95"
           >
             <Trash2 size={20} />
           </button>
           <button 
             onClick={() => setModalOpen(true)}
-            className="bg-slate-900 text-white px-6 py-3 rounded-xl font-semibold text-sm hover:bg-indigo-600 transition-all shadow-lg flex items-center gap-2"
+            className="bg-slate-900 text-white px-6 py-3 rounded-xl font-semibold text-sm hover:bg-indigo-600 transition-all shadow-lg flex items-center gap-2 active:scale-95"
           >
             <Plus size={18} /> Create Interview
           </button>
@@ -96,7 +102,7 @@ export default function ProtocolDashboard() {
       </div>
 
       {/* Main Data Table */}
-      <div className="bg-white border border-slate-200 rounded-[2rem] overflow-hidden shadow-sm">
+      <div className="bg-white border border-slate-200 rounded-[2rem] overflow-hidden shadow-sm min-h-[400px]">
         <table className="w-full text-left">
           <thead className="bg-slate-50 border-b border-slate-200">
             {activeTab === 'interviews' ? (
@@ -114,78 +120,85 @@ export default function ProtocolDashboard() {
             )}
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {activeTab === 'interviews' ? (
-              // Interviews Tab Content
-              interviews.length > 0 ? interviews.map((item) => (
-                <tr key={item._id} className="hover:bg-slate-50/50 transition-colors">
-                  <td className="px-8 py-5">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 bg-slate-100 rounded-lg flex items-center justify-center text-slate-400">
-                        <ClipboardList size={16}/>
-                      </div>
-                      <span className="font-semibold text-slate-900">{item.title}</span>
-                    </div>
-                  </td>
-                  <td className="px-8 py-5">
-                    <div className="flex gap-2">
-                      {item.targetRoles?.map((r, i) => (
-                        <span key={i} className="px-2 py-0.5 bg-indigo-50 text-indigo-700 text-[10px] font-bold rounded uppercase border border-indigo-100">
-                          {r}
-                        </span>
-                      ))}
-                    </div>
-                  </td>
-                  <td className="px-8 py-5 text-right">
-                    <button 
-                      onClick={() => {
-                        navigator.clipboard.writeText(item.accessCode);
-                        alert("Key Copied!");
-                      }} 
-                      className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-mono font-bold text-slate-600 hover:text-indigo-600 hover:border-indigo-200 transition-all"
-                    >
-                      {item.accessCode} <Copy size={10} className="inline ml-1 opacity-40"/>
-                    </button>
-                  </td>
-                </tr>
-              )) : (
-                <tr>
-                  <td colSpan="3" className="px-8 py-12 text-center text-slate-400 italic">No active interviews found.</td>
-                </tr>
-              )
+            {loading ? (
+              <tr>
+                <td colSpan="4" className="py-32 text-center">
+                  <Loader2 className="animate-spin mx-auto text-indigo-500" size={32} />
+                  <p className="text-xs text-slate-400 mt-4 font-medium uppercase tracking-widest">Syncing with terminal...</p>
+                </td>
+              </tr>
             ) : (
-              // Submissions Tab Content
-              submissions.length > 0 ? submissions.map((sub) => (
-                <tr key={sub._id} className="hover:bg-slate-50/50 transition-colors group">
-                  <td className="px-8 py-5">
-                    <p className="font-semibold text-slate-900">{sub.candidateName}</p>
-                    <p className="text-xs text-slate-400">{sub.candidateEmail}</p>
-                  </td>
-                  <td className="px-8 py-5">
-                    <span className="text-sm text-slate-600 font-medium">{sub.interviewTitle}</span>
-                  </td>
-                  <td className="px-8 py-5 text-right">
-                    <div className="flex items-center justify-end gap-4">
-                      <span className={`px-4 py-2 rounded-full font-bold text-xs border ${
-                        sub.score >= 70 
-                        ? 'bg-green-50 text-green-700 border-green-100' 
-                        : 'bg-amber-50 text-amber-700 border-amber-100'
-                      }`}>
-                        {sub.score}%
-                      </span>
+              activeTab === 'interviews' ? (
+                interviews.length > 0 ? interviews.map((item) => (
+                  <tr key={item._id} className="hover:bg-slate-50/50 transition-colors">
+                    <td className="px-8 py-5">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 bg-slate-100 rounded-lg flex items-center justify-center text-slate-400">
+                          <ClipboardList size={16}/>
+                        </div>
+                        <span className="font-semibold text-slate-900 tracking-tight">{item.title}</span>
+                      </div>
+                    </td>
+                    <td className="px-8 py-5">
+                      <div className="flex flex-wrap gap-2">
+                        {item.targetRoles?.map((r, i) => (
+                          <span key={i} className="px-2 py-0.5 bg-indigo-50 text-indigo-700 text-[10px] font-bold rounded uppercase border border-indigo-100">
+                            {r}
+                          </span>
+                        ))}
+                      </div>
+                    </td>
+                    <td className="px-8 py-5 text-right">
                       <button 
-                        onClick={() => handleDeleteSubmission(sub._id)}
-                        className="text-slate-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100 p-1"
-                        title="Delete Record"
+                        onClick={() => {
+                          navigator.clipboard.writeText(item.accessCode);
+                          alert("Code copied to clipboard!");
+                        }} 
+                        className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-mono font-bold text-slate-600 hover:text-indigo-600 hover:border-indigo-200 transition-all flex items-center gap-2 ml-auto"
                       >
-                        <XCircle size={18} />
+                        {item.accessCode} <Copy size={10} className="opacity-40"/>
                       </button>
-                    </div>
-                  </td>
-                </tr>
-              )) : (
-                <tr>
-                  <td colSpan="3" className="px-8 py-12 text-center text-slate-400 italic">No candidate results logged yet.</td>
-                </tr>
+                    </td>
+                  </tr>
+                )) : (
+                  <tr>
+                    <td colSpan="3" className="px-8 py-20 text-center text-slate-400 italic font-medium">No active protocols found.</td>
+                  </tr>
+                )
+              ) : (
+                submissions.length > 0 ? submissions.map((sub) => (
+                  <tr key={sub._id} className="hover:bg-slate-50/50 transition-colors group">
+                    <td className="px-8 py-5">
+                      <p className="font-semibold text-slate-900 tracking-tight">{sub.candidateName}</p>
+                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">{sub.candidateEmail}</p>
+                    </td>
+                    <td className="px-8 py-5">
+                      <span className="text-sm text-slate-600 font-bold">{sub.interviewTitle}</span>
+                    </td>
+                    <td className="px-8 py-5 text-right">
+                      <div className="flex items-center justify-end gap-4">
+                        <span className={`px-4 py-1.5 rounded-full font-black text-xs border ${
+                          sub.score >= 70 
+                          ? 'bg-emerald-50 text-emerald-700 border-emerald-100' 
+                          : 'bg-rose-50 text-rose-700 border-rose-100'
+                        }`}>
+                          {sub.score}%
+                        </span>
+                        <button 
+                          onClick={() => handleDeleteSubmission(sub._id)}
+                          className="text-slate-300 hover:text-rose-500 transition-colors opacity-0 group-hover:opacity-100 p-2 bg-slate-50 rounded-lg"
+                          title="Delete Record"
+                        >
+                          <XCircle size={18} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                )) : (
+                  <tr>
+                    <td colSpan="3" className="px-8 py-20 text-center text-slate-400 italic font-medium">Waiting for candidate submissions...</td>
+                  </tr>
+                )
               )
             )}
           </tbody>

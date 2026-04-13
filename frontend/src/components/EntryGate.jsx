@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import axios from 'axios';
+import api from '../api'; // Switched from axios to your custom config
 import { Fingerprint, ArrowRight, Loader2, ShieldCheck, Zap, BarChart3, Globe } from 'lucide-react';
 
 export default function EntryGate({ onStartQuiz }) {
@@ -8,15 +8,23 @@ export default function EntryGate({ onStartQuiz }) {
 
   const handleJoin = async () => {
     if (!formData.name || !formData.email || !formData.code) return alert("Please fill all boxes.");
+    
     setLoading(true);
     try {
-      const res = await axios.get(
-        `http://localhost:5000/api/interviews/access/${formData.code.toUpperCase()}?email=${formData.email.toLowerCase().trim()}`
+      // The URL is now relative because 'api' handles the base URL
+      const res = await api.get(
+        `/api/interviews/access/${formData.code.toUpperCase()}?email=${formData.email.toLowerCase().trim()}`
       );
+      
       onStartQuiz(res.data, { name: formData.name, email: formData.email });
     } catch (err) {
-      if (err.response?.status === 403) alert("You already took this test.");
-      else alert("Wrong code or server is down.");
+      if (err.response?.status === 403) {
+        alert("You already took this test.");
+      } else if (err.response?.status === 404) {
+        alert("Invalid Test Code.");
+      } else {
+        alert("Server is waking up or connection failed. Please try again in 30 seconds.");
+      }
     } finally {
       setLoading(false);
     }
