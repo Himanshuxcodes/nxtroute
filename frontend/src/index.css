@@ -1,0 +1,29 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: #f8fafc; /* Soft Slate/White */
+  --accent: #7c3aed; /* Deeper Violet for contrast */
+  --glass: rgba(255, 255, 255, 0.7);
+  --border: rgba(0, 0, 0, 0.05);
+}
+
+body {
+  background-color: var(--bg);
+  color: #1e293b;
+  font-family: 'Inter', system-ui, sans-serif;
+}
+
+/* Updated Glass Panel for Light Mode */
+.glass-panel {
+  background: var(--glass);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--border);
+  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.04);
+}
+
+.hex-glow-light {
+  color: var(--accent);
+  text-shadow: 0 0 8px rgba(124, 58, 237, 0.2);
+}
