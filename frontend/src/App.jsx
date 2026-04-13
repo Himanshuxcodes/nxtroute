@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import api from '../api'; // Switched from axios to your custom config
+import api from './api'; // Switched from axios to your custom config
 import { Sparkles, X, Terminal, AlertCircle } from 'lucide-react';
 
 export default function RouteGenerator({ onClose }) {
