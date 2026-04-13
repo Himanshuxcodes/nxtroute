@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Download, Layout, Users, Trash2, Plus, ListFilter, Tag, Bookmark, Copy, Check } from 'lucide-react'; // Added Copy/Check
+import { Download, Layout, Users, Trash2, Plus, ListFilter, Tag, Bookmark, Copy, Check } from 'lucide-react';
 import API from '../api';
 import RouteGenerator from './RouteGenerator';
 
@@ -8,7 +8,7 @@ export default function ProtocolDashboard() {
   const [data, setData] = useState({ interviews: [], submissions: [] });
   const [filterCode, setFilterCode] = useState('ALL');
   const [isModalOpen, setModalOpen] = useState(false);
-  const [copyingId, setCopyingId] = useState(null); // Added for feedback
+  const [copyingId, setCopyingId] = useState(null);
 
   const refresh = async () => {
     try {
@@ -24,14 +24,12 @@ export default function ProtocolDashboard() {
 
   useEffect(() => { refresh(); }, []);
 
-  // COPY FUNCTION
   const copyCode = (code, id) => {
     navigator.clipboard.writeText(code);
     setCopyingId(id);
     setTimeout(() => setCopyingId(null), 2000);
   };
 
-  // STRICT FILTER LOGIC
   const displayList = filterCode === 'ALL' 
     ? data.submissions 
     : data.submissions.filter(s => {
@@ -64,7 +62,6 @@ export default function ProtocolDashboard() {
 
   return (
     <div className="py-10">
-      {/* HEADER SECTION */}
       <div className="flex justify-between items-end mb-12">
         <div>
           <h1 className="text-5xl font-black tracking-tight text-slate-900">Admin Terminal</h1>
@@ -121,7 +118,6 @@ export default function ProtocolDashboard() {
         </div>
       </div>
 
-      {/* TABLE SECTION */}
       <div className="bg-white rounded-[3rem] shadow-2xl border border-slate-100 overflow-hidden">
         <table className="w-full text-left">
           <thead className="bg-slate-50 border-b">
@@ -140,7 +136,6 @@ export default function ProtocolDashboard() {
                       <div className="text-indigo-600 font-mono font-black text-lg bg-indigo-50 px-3 py-1 rounded-lg inline-block uppercase tracking-wider">
                         {i.accessCode}
                       </div>
-                      {/* COPY BUTTON */}
                       <button 
                         onClick={() => copyCode(i.accessCode, i._id)}
                         className={`p-1.5 rounded-lg transition-all ${copyingId === i._id ? 'text-emerald-500' : 'text-slate-300 hover:text-indigo-600'}`}
@@ -194,16 +189,15 @@ export default function ProtocolDashboard() {
             )}
           </tbody>
         </table>
-
-        {/* EMPTY STATE */}
-        {((tab === 'protocols' && data.interviews.length === 0) || (tab === 'submissions' && displayList.length === 0)) && (
-          <div className="py-32 text-center">
-            <div className="text-slate-200 font-black uppercase tracking-[0.5em] text-xl">System Empty / No Matches</div>
-          </div>
-        )}
       </div>
 
-      {isModalOpen && <RouteGenerator onClose={() => { setModalOpen(false); refresh(); }} />}
+      {/* MODAL INTEGRATION WITH CANCEL LOGIC */}
+      {isModalOpen && (
+        <RouteGenerator 
+          onCreated={() => { refresh(); }} 
+          onClose={() => setModalOpen(false)} 
+        />
+      )}
     </div>
   );
 }

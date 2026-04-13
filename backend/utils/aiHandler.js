@@ -1,28 +1,32 @@
+const { Groq } = require('groq-sdk');
+
 const generateQuestions = async (topic) => {
   try {
+    // Initialize groq INSIDE the function so it has access to the API key
+    const groq = new Groq({ 
+      apiKey: process.env.GROQ_API_KEY
+    });
+    
     const chatCompletion = await groq.chat.completions.create({
       messages: [
         {
           role: "system",
-          content: `You are a Senior Software Engineer. Generate 15 EASY level technical coding MCQs about ${topic}.
-          
-          STRICT RULES:
-          1. Focus ONLY on syntax, logic, functions, and data structures.
-          2. No soft skills or "recruiter" questions.
-          3. Use small code snippets in the 'question' string whenever possible (use \n for line breaks).
-          4. Return ONLY a valid JSON object.
-          
-          Format: { "questions": [ { "question": "What is the output of: \n console.log(typeof []);", "options": ["object", "array", "null", "undefined"], "correctAnswer": 0 } ] }`
+          content: `Generate 15 technical MCQs about ${topic}. Return ONLY JSON: {"questions": [{"question": "...", "options": ["a", "b", "c", "d"], "correctAnswer": 0}]}`
         }
       ],
       model: "llama-3.1-8b-instant",
       response_format: { type: "json_object" }
     });
 
-    const data = JSON.parse(chatCompletion.choices[0].message.content);
+    const content = chatCompletion.choices[0]?.message?.content;
+    if (!content) return null;
+
+    const data = JSON.parse(content);
     return data.questions || null;
   } catch (error) {
-    console.error("AI Error:", error);
-    return null;
+    console.error("AI Generation Error:", error.message);
+    return null; 
   }
 };
+
+module.exports = { generateQuestions };
