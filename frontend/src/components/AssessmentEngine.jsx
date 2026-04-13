@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
-import api from '../api'; // Use your custom axios config
-import { Timer, ChevronRight, CheckCircle2, AlertCircle } from 'lucide-react';
+import api from '../api'; 
+import { Timer, ChevronRight, CheckCircle2 } from 'lucide-react';
 
 export default function AssessmentEngine({ interview, candidate, onFinish }) {
   const [currentIdx, setCurrentIdx] = useState(0);
   const [answers, setAnswers] = useState({});
-  const [timeLeft, setTimeLeft] = useState(600); 
+  const [timeLeft, setTimeLeft] = useState(600); // 10 minutes
   const [submitting, setSubmitting] = useState(false);
 
   // Timer logic
@@ -27,29 +27,37 @@ export default function AssessmentEngine({ interview, candidate, onFinish }) {
     if (submitting) return;
     setSubmitting(true);
 
+    // 1. Calculate Score based on backend indices
     let correctCount = 0;
     interview.questions.forEach((q, i) => {
       if (finalAnswers[i] === q.correctAnswer) correctCount++;
     });
 
-    const score = Math.round((correctCount / interview.questions.length) * 100);
-    const wrongAnswers = interview.questions.length - correctCount;
+    const totalQuestions = interview.questions.length;
+    const score = Math.round((correctCount / totalQuestions) * 100);
+    const wrongAnswers = totalQuestions - correctCount;
 
     try {
-      // POST the results to your live backend
-      await api.post('/api/interviews/submit', {
+      /**
+       * CRITICAL FIX: 
+       * 1. URL matched to backend route: /submit-assessment
+       * 2. Added totalQuestions to payload for dashboard accuracy
+       */
+      await api.post('/api/interviews/submit-assessment', {
         candidateName: candidate.name,
         candidateEmail: candidate.email,
         interviewId: interview._id,
         interviewTitle: interview.title,
         score: score,
+        totalQuestions: totalQuestions,
         wrongAnswers: wrongAnswers
       });
 
       onFinish({ score, wrongAnswers });
     } catch (err) {
       console.error("Submission failed:", err);
-      alert("Terminal lost connection. Your score was: " + score + "%");
+      // Fallback: Notify user even if DB write fails
+      alert("Terminal sync failed, but your score was captured locally: " + score + "%");
       onFinish({ score, wrongAnswers }); 
     } finally {
       setSubmitting(false);
@@ -110,7 +118,10 @@ export default function AssessmentEngine({ interview, candidate, onFinish }) {
         </p>
         <button
           onClick={() => currentIdx < interview.questions.length - 1 ? setCurrentIdx(prev => prev + 1) : handleFinish()}
-          disabled={submitting}
+          /** * USER EXPERIENCE FIX: 
+           * Disable button if no answer is selected to prevent accidental "wrong" answers
+           */
+          disabled={submitting || answers[currentIdx] === undefined}
           className="flex items-center gap-2 bg-slate-900 text-white px-8 py-4 rounded-2xl font-bold text-sm hover:bg-indigo-600 transition-all shadow-lg active:scale-95 disabled:opacity-50"
         >
           {submitting ? (

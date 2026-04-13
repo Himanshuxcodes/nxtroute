@@ -1,5 +1,4 @@
 const OpenAI = require("openai");
-
 const groq = new OpenAI({
   apiKey: process.env.GROQ_API_KEY,
   baseURL: "https://api.groq.com/openai/v1",
@@ -11,14 +10,7 @@ const generateQuestions = async (topic) => {
       messages: [
         {
           role: "system",
-          content: `You are a technical recruiter. Return ONLY a JSON object with a 'questions' key. 
-          Generate 15 EASY level MCQs for: ${topic}. 
-          Keep questions very short (max 15 words) so they can be answered in 20 seconds.
-          Format: { "questions": [ { "question": "text", "options": ["a", "b", "c", "d"], "correctAnswer": 0 } ] }`
-        },
-        {
-          role: "user",
-          content: `Generate 15 quick MCQs for ${topic}.`
+          content: `Generate 15 EASY MCQs for: ${topic}. Return ONLY JSON: {"questions": [{"question": "...", "options": ["a", "b", "c", "d"], "correctAnswer": 0}]}`
         }
       ],
       model: "llama-3.1-8b-instant",
@@ -26,10 +18,11 @@ const generateQuestions = async (topic) => {
     });
 
     const data = JSON.parse(chatCompletion.choices[0].message.content);
-    return data.questions;
+    // Ensure it's exactly 15 or at least has data
+    return data.questions && data.questions.length > 0 ? data.questions : null;
   } catch (error) {
-    console.error("AI Error:", error.message);
-    return []; 
+    console.error("GROQ_ERROR:", error.message);
+    return null;
   }
 };
 

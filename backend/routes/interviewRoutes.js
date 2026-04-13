@@ -4,148 +4,75 @@ const Interview = require('../models/Interview');
 const Submission = require('../models/Submission');
 const { generateQuestions } = require('../utils/aiHandler');
 
-// --- ADMIN LOGIN ---
-// Validates terminal access using environment variables
+// ADMIN LOGIN
 router.post('/admin/login', (req, res) => {
   const { username, password } = req.body;
   if (username === process.env.ADMIN_USER && password === process.env.ADMIN_PASS) {
-    return res.status(200).json({ 
-      success: true, 
-      token: 'admin-session-' + Math.random().toString(36).substring(7) 
-    });
+    return res.status(200).json({ success: true });
   }
-  res.status(401).json({ error: "SERVER: ACCESS_DENIED" });
+  res.status(401).json({ error: "Unauthorized" });
 });
 
-// --- CREATE INTERVIEW (With AI Generation) ---
-// Fixes 400 errors by ensuring questions are generated before saving
+// CREATE PROTOCOL
 router.post('/create', async (req, res) => {
   try {
-    const { title, targetRoles, accessCode } = req.body;
-    
-    // AI Handshake: Generate 15 technical questions based on title
+    const { title } = req.body;
     const aiQuestions = await generateQuestions(title);
     
-    if (!aiQuestions || aiQuestions.length === 0) {
-      return res.status(400).json({ error: "AI failed to generate questions. Check API keys." });
+    // GUARD: If AI fails, don't try to save (prevents 400/500 errors)
+    if (!aiQuestions) {
+      return res.status(422).json({ error: "AI failed to generate questions. Try a different topic." });
     }
 
+    const code = Math.random().toString(36).substring(2, 8).toUpperCase();
     const newInterview = new Interview({
       title,
-      targetRoles,
-      accessCode: accessCode.toUpperCase(),
+      accessCode: code,
       questions: aiQuestions,
-      status: 'Active'
+      expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000) 
     });
 
     await newInterview.save();
     res.status(201).json(newInterview);
   } catch (err) {
-    console.error("Creation Error:", err.message);
-    res.status(400).json({ error: "Failed to deploy protocol." });
+    res.status(400).json({ error: "Invalid Data Structure" });
   }
 });
 
-// --- ACCESS CONTROL & DUPLICATE CHECK ---
-// Fixes 404 errors and prevents double-submissions by same email
+// ACCESS KEY CHECK
 router.get('/access/:code', async (req, res) => {
-  try {
-    const { code } = req.params;
-    const { email } = req.query; // Passed from EntryGate.jsx
-
-    const interview = await Interview.findOne({ 
-      accessCode: code.toUpperCase(), 
-      status: 'Active' 
-    });
-    
-    if (!interview) {
-      return res.status(404).json({ error: "Protocol Key Invalid or Expired." });
-    }
-
-    // Security: Check if this email has already attempted this specific test
-    if (email) {
-      const existingSubmission = await Submission.findOne({
-        candidateEmail: email.toLowerCase().trim(),
-        interviewId: interview._id
-      });
-
-      if (existingSubmission) {
-        return res.status(403).json({ 
-          error: "ACCESS_REVOKED: This identity has already completed this assessment." 
-        });
-      }
-    }
-
-    res.json(interview);
-  } catch (err) {
-    res.status(500).json({ error: "Terminal Sync Error." });
-  }
+  const interview = await Interview.findOne({ 
+    accessCode: req.params.code.toUpperCase(),
+    expiresAt: { $gt: new Date() } 
+  });
+  if (!interview) return res.status(404).json({ error: "Code Expired or Invalid" });
+  res.json(interview);
 });
 
-// --- SUBMIT ASSESSMENT ---
-router.post('/submit-assessment', async (req, res) => {
-  try {
-    // Basic sanitization
-    const data = {
-      ...req.body,
-      candidateEmail: req.body.candidateEmail.toLowerCase().trim()
-    };
-    
-    const submission = new Submission(data);
-    await submission.save();
-    res.status(201).json({ success: true });
-  } catch (err) {
-    // Handles database-level unique index collisions
-    if (err.code === 11000) {
-      return res.status(400).json({ error: "Duplicate submission detected." });
-    }
-    res.status(400).json({ error: "Data upload failed." });
-  }
-});
-
-// --- ADMIN DATA FETCH ---
-// Provides combined stats for the Protocol Dashboard
+// DATA FETCH & DELETE
 router.get('/data/stats', async (req, res) => {
-  try {
-    const allInterviews = await Interview.find().sort({ createdAt: -1 });
-    const allSubmissions = await Submission.find().sort({ submittedAt: -1 });
-    res.json({ allInterviews, allSubmissions });
-  } catch (err) {
-    res.status(500).json({ error: "Data retrieval failed." });
-  }
-});
-
-// --- SINGLE RECORD DELETION ---
-router.delete('/submission/:id', async (req, res) => {
-  try {
-    await Submission.findByIdAndDelete(req.params.id);
-    res.json({ success: true });
-  } catch (err) {
-    res.status(500).json({ error: "Delete failed." });
-  }
+  const allInterviews = await Interview.find().sort({ createdAt: -1 });
+  const allSubmissions = await Submission.find().sort({ submittedAt: -1 });
+  res.json({ allInterviews, allSubmissions });
 });
 
 router.delete('/protocol/:id', async (req, res) => {
-  try {
-    await Interview.findByIdAndDelete(req.params.id);
-    // Optional: Also delete all submissions associated with this protocol
-    await Submission.deleteMany({ interviewId: req.params.id });
-    res.json({ success: true });
-  } catch (err) {
-    res.status(500).json({ error: "Protocol termination failed." });
-  }
+  await Interview.findByIdAndDelete(req.params.id);
+  res.json({ success: true });
 });
 
-// --- PURGE SYSTEM ---
-// Clear all data for a fresh start
-router.delete('/purge', async (req, res) => {
+router.delete('/submission/:id', async (req, res) => {
+  await Submission.findByIdAndDelete(req.params.id);
+  res.json({ success: true });
+});
+
+// SUBMIT QUIZ
+router.post('/submit-assessment', async (req, res) => {
   try {
-    await Interview.deleteMany({});
-    await Submission.deleteMany({});
-    res.json({ success: true, message: "All logs cleared." });
-  } catch (err) {
-    res.status(500).json({ error: "Purge failed." });
-  }
+    const newSub = new Submission(req.body);
+    await newSub.save();
+    res.status(201).json({ success: true });
+  } catch (err) { res.status(400).json({ error: "Submission Failed" }); }
 });
 
 module.exports = router;

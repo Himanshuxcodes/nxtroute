@@ -1,193 +1,192 @@
 import { useState, useEffect } from 'react';
-import api from '../api'; // Switched from axios to your custom config
-import { Trash2, Download, Plus, Layout, Users, Mail, Award, Loader2, Copy, CheckCircle, ClipboardList, Database } from 'lucide-react';
+import { Download, Layout, Users, Trash2, Plus, ListFilter, Tag, Bookmark } from 'lucide-react';
+import API from '../api';
 import RouteGenerator from './RouteGenerator';
 
 export default function ProtocolDashboard() {
-  const [activeTab, setActiveTab] = useState('interviews');
+  const [tab, setTab] = useState('protocols');
   const [data, setData] = useState({ interviews: [], submissions: [] });
-  const [loading, setLoading] = useState(true);
+  const [filterCode, setFilterCode] = useState('ALL');
   const [isModalOpen, setModalOpen] = useState(false);
-  const [selectedProtocolId, setSelectedProtocolId] = useState('all');
-  const [copiedKey, setCopiedKey] = useState(null);
 
-  const fetchData = async () => {
-    setLoading(true);
+  const refresh = async () => {
     try {
-      // Relative URL handles your Render backend automatically
-      const res = await api.get('/api/interviews/data/stats');
+      const res = await API.get('/data/stats');
       setData({ 
-        interviews: Array.isArray(res.data.allInterviews) ? res.data.allInterviews : [], 
-        submissions: Array.isArray(res.data.allSubmissions) ? res.data.allSubmissions : [] 
+        interviews: res.data.allInterviews || [], 
+        submissions: res.data.allSubmissions || [] 
       });
-    } catch (e) { 
-      console.error("Sync Failed:", e); 
-    } finally { 
-      setLoading(false); 
+    } catch (e) {
+      console.error("Dashboard Sync Error:", e);
     }
   };
 
-  useEffect(() => { fetchData(); }, []);
+  useEffect(() => { refresh(); }, []);
+
+  // STRICT FILTER LOGIC
+  const displayList = filterCode === 'ALL' 
+    ? data.submissions 
+    : data.submissions.filter(s => {
+        if (!s.interviewCode) return false;
+        return s.interviewCode.toString().trim().toUpperCase() === filterCode.toString().trim().toUpperCase();
+      });
+
+  const deleteItem = async (type, id) => {
+    if (!window.confirm(`Permanently delete this ${type}?`)) return;
+    const path = type === 'protocol' ? `/protocol/${id}` : `/submission/${id}`;
+    try {
+      await API.delete(path);
+      refresh();
+    } catch (e) {
+      alert("Action failed. Check server connection.");
+    }
+  };
 
   const downloadCSV = () => {
-    const csvRows = [
-      ["Candidate Name", "Email", "Protocol", "Score", "Wrongs", "Date"],
-      ...data.submissions.map(s => [
-        s.candidateName,
-        s.candidateEmail,
-        s.interviewTitle,
-        `${s.score}%`,
-        s.wrongAnswers || 0,
-        new Date(s.submittedAt).toLocaleDateString()
-      ])
-    ];
-
-    const csvContent = csvRows.map(e => e.join(",")).join("\n");
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.setAttribute("href", url);
-    link.setAttribute("download", `terminal_export_${new Date().toISOString().split('T')[0]}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
-  const handleCopy = (code) => {
-    navigator.clipboard.writeText(code);
-    setCopiedKey(code);
-    setTimeout(() => setCopiedKey(null), 2000);
-  };
-
-  const handleDelete = async (type, id) => {
-    if (!window.confirm(`Permanently delete this ${type}?`)) return;
-    try {
-      await api.delete(`/api/interviews/${type}/${id}`);
-      fetchData();
-    } catch (e) { 
-      alert("Error deleting record. Terminal sync failed."); 
-    }
+    const csvContent = "Candidate,Email,Protocol_Name,Protocol_Code,Score\n" + 
+      displayList.map(s => `${s.candidateName},${s.candidateEmail},${s.interviewTitle},${s.interviewCode},${s.score}%`).join("\n");
+    
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `Results_${filterCode}_${new Date().toLocaleDateString()}.csv`;
+    a.click();
   };
 
   return (
-    <div className="p-8 max-w-7xl mx-auto animate-in fade-in duration-700">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-10 gap-6">
+    <div className="py-10">
+      {/* HEADER SECTION */}
+      <div className="flex justify-between items-end mb-12">
         <div>
-          <h1 className="text-4xl font-black text-slate-900 tracking-tighter">Terminal Admin</h1>
-          <div className="flex gap-8 mt-6">
-            <button onClick={() => setActiveTab('interviews')} className={`pb-3 font-bold text-sm flex items-center gap-2 border-b-2 transition-all ${activeTab === 'interviews' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-400'}`}>
-              <Layout size={16}/> Protocols
+          <h1 className="text-5xl font-black tracking-tight text-slate-900">Admin Terminal</h1>
+          <div className="flex gap-8 mt-8">
+            <button 
+              onClick={() => setTab('protocols')} 
+              className={`pb-3 font-black text-sm uppercase tracking-widest transition-all ${tab === 'protocols' ? 'border-b-4 border-indigo-600 text-indigo-600' : 'text-slate-300'}`}
+            >
+              Protocols
             </button>
-            <button onClick={() => setActiveTab('submissions')} className={`pb-3 font-bold text-sm flex items-center gap-2 border-b-2 transition-all ${activeTab === 'submissions' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-400'}`}>
-              <Users size={16}/> Submissions
+            <button 
+              onClick={() => setTab('submissions')} 
+              className={`pb-3 font-black text-sm uppercase tracking-widest transition-all ${tab === 'submissions' ? 'border-b-4 border-indigo-600 text-indigo-600' : 'text-slate-300'}`}
+            >
+              Submissions
             </button>
           </div>
         </div>
 
-        <div className="flex items-center gap-3 w-full md:w-auto">
-          {activeTab === 'submissions' && data.submissions.length > 0 && (
-            <button 
-              onClick={downloadCSV}
-              className="p-4 text-slate-400 hover:text-indigo-600 border-2 border-slate-100 rounded-2xl transition-all bg-white hover:border-indigo-100 shadow-sm"
-              title="Export CSV"
-            >
-              <Download size={20} />
-            </button>
-          )}
-
-          {activeTab === 'submissions' && data.interviews.length > 0 && (
-            <select 
-              value={selectedProtocolId} 
-              onChange={(e)=>setSelectedProtocolId(e.target.value)} 
-              className="bg-white border-2 border-slate-100 rounded-xl px-4 py-3 font-bold text-xs outline-none focus:border-indigo-500 transition-all shadow-sm cursor-pointer"
-            >
-              <option value="all">All Protocols</option>
-              {data.interviews.map(i => (
-                <option key={i._id} value={i._id}>{i.title}</option>
-              ))}
-            </select>
+        <div className="flex gap-4">
+          {tab === 'submissions' && (
+            <div className="relative">
+              <select 
+                className="pl-12 pr-10 py-4 border-2 rounded-2xl font-black bg-white appearance-none outline-none focus:border-indigo-500 shadow-sm text-slate-700 cursor-pointer min-w-[220px]" 
+                onChange={(e) => setFilterCode(e.target.value)}
+                value={filterCode}
+              >
+                <option value="ALL">ALL ACTIVE LOGS</option>
+                {data.interviews.map(i => (
+                  <option key={i._id} value={i.accessCode}>
+                    {i.accessCode} — {i.title.toUpperCase()}
+                  </option>
+                ))}
+              </select>
+              <ListFilter className="absolute left-4 top-1/2 -translate-y-1/2 text-indigo-500" size={20} />
+            </div>
           )}
           
-          <button onClick={() => setModalOpen(true)} className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-slate-900 text-white px-8 py-4 rounded-2xl font-bold hover:bg-indigo-600 transition-all shadow-lg active:scale-95">
-            <Plus size={20} /> Create Protocol
+          <button 
+            onClick={() => setModalOpen(true)} 
+            className="bg-slate-900 text-white px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-indigo-600 transition-all shadow-xl flex items-center gap-2"
+          >
+            <Plus size={18}/> New Protocol
           </button>
+
+          {tab === 'submissions' && displayList.length > 0 && (
+            <button 
+              onClick={downloadCSV} 
+              className="bg-emerald-600 text-white px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-widest flex items-center gap-2 hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-100"
+            >
+              <Download size={18}/> Export CSV
+            </button>
+          )}
         </div>
       </div>
 
-      <div className="bg-white border border-slate-200 rounded-[2.5rem] overflow-hidden shadow-2xl">
+      {/* TABLE SECTION */}
+      <div className="bg-white rounded-[3rem] shadow-2xl border border-slate-100 overflow-hidden">
         <table className="w-full text-left">
           <thead className="bg-slate-50 border-b">
             <tr>
-              <th className="px-10 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Detail</th>
-              {activeTab === 'submissions' && <th className="px-10 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Protocol</th>}
-              <th className="px-10 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Metrics / Actions</th>
+              <th className="px-12 py-6 text-xs font-black uppercase text-slate-400 tracking-widest">Identity & Context</th>
+              <th className="px-12 py-6 text-xs font-black uppercase text-slate-400 tracking-widest text-right">Results & Control</th>
             </tr>
           </thead>
-          <tbody className="divide-y">
-            {loading ? (
-              <tr><td colSpan="4" className="p-32 text-center"><Loader2 className="animate-spin mx-auto text-indigo-500" size={40} /></td></tr>
+          <tbody className="divide-y divide-slate-100">
+            {tab === 'protocols' ? (
+              data.interviews.map(i => (
+                <tr key={i._id} className="group hover:bg-slate-50 transition-colors">
+                  <td className="px-12 py-10">
+                    <div className="font-black text-2xl text-slate-900 mb-1">{i.title}</div>
+                    <div className="text-indigo-600 font-mono font-black text-lg bg-indigo-50 px-3 py-1 rounded-lg inline-block uppercase tracking-wider">
+                      {i.accessCode}
+                    </div>
+                  </td>
+                  <td className="px-12 py-10 text-right">
+                    <button 
+                      onClick={() => deleteItem('protocol', i._id)} 
+                      className="p-4 text-slate-200 hover:text-rose-500 hover:bg-rose-50 rounded-2xl transition-all opacity-0 group-hover:opacity-100"
+                    >
+                      <Trash2 size={24}/>
+                    </button>
+                  </td>
+                </tr>
+              ))
             ) : (
-              activeTab === 'interviews' ? (
-                data.interviews.length === 0 ? (
-                  <tr><td colSpan="3" className="p-20 text-center text-slate-400 font-medium italic">No protocols found. Create your first one!</td></tr>
-                ) : (
-                  data.interviews.map(item => (
-                    <tr key={item._id} className="group hover:bg-slate-50 transition-colors">
-                      <td className="px-10 py-8">
-                        <div className="font-bold text-slate-900 text-lg tracking-tight">{item.title}</div>
-                        <div onClick={() => handleCopy(item.accessCode)} className="text-[10px] mt-2 flex items-center gap-2 cursor-pointer w-fit group/copy">
-                          <span className={`font-black px-3 py-1 rounded-lg transition-all flex items-center gap-2 ${copiedKey === item.accessCode ? 'bg-emerald-500 text-white' : 'bg-indigo-50 text-indigo-600 group-hover/copy:bg-indigo-100'}`}>
-                            {copiedKey === item.accessCode ? <CheckCircle size={12}/> : <Copy size={12}/>}
-                            {item.accessCode}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="px-10 py-8 text-right">
-                        <button onClick={() => handleDelete('protocol', item._id)} className="opacity-0 group-hover:opacity-100 p-3 bg-rose-50 text-rose-400 hover:text-rose-600 rounded-xl transition-all">
-                          <Trash2 size={18}/>
-                        </button>
-                      </td>
-                    </tr>
-                  ))
-                )
-              ) : (
-                data.submissions.filter(s => selectedProtocolId === 'all' || s.interviewId === selectedProtocolId).length === 0 ? (
-                  <tr><td colSpan="4" className="p-20 text-center text-slate-400 font-medium italic">No candidates have completed this test yet.</td></tr>
-                ) : (
-                  data.submissions.filter(s => selectedProtocolId === 'all' || s.interviewId === selectedProtocolId).map(sub => (
-                    <tr key={sub._id} className="group hover:bg-slate-50 transition-colors">
-                      <td className="px-10 py-8">
-                        <div className="font-bold text-slate-900">{sub.candidateName}</div>
-                        <div className="text-xs text-slate-400 font-medium flex items-center gap-1.5 mt-1"><Mail size={12}/> {sub.candidateEmail}</div>
-                      </td>
-                      <td className="px-10 py-8">
-                        <div className="flex items-center gap-2">
-                          <div className="w-8 h-8 bg-slate-100 rounded-lg flex items-center justify-center text-indigo-500">
-                             <ClipboardList size={14} />
-                          </div>
-                          <span className="text-sm font-bold text-slate-600">{sub.interviewTitle}</span>
-                        </div>
-                      </td>
-                      <td className="px-10 py-8 text-right">
-                        <div className="flex items-center justify-end gap-6">
-                          <div className="flex flex-col items-end">
-                            <span className="text-2xl font-black text-slate-900">{sub.score}%</span>
-                            <span className="text-[9px] font-black text-rose-500 bg-rose-50 px-2 py-0.5 rounded-md uppercase tracking-tighter">{sub.wrongAnswers || 0} Errors</span>
-                          </div>
-                          <button onClick={() => handleDelete('submission', sub._id)} className="opacity-0 group-hover:opacity-100 p-3 bg-rose-50 text-rose-400 hover:text-rose-600 rounded-xl transition-all">
-                            <Trash2 size={18}/>
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                )
-              )
+              displayList.map(s => (
+                <tr key={s._id} className="group hover:bg-slate-50 transition-colors">
+                  <td className="px-12 py-10">
+                    <div className="font-black text-4xl text-slate-900 mb-3 tracking-tighter uppercase italic">
+                      {s.candidateName}
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <div className="text-slate-500 text-lg font-bold flex items-center gap-2">
+                        <Bookmark size={18} className="text-indigo-500" /> {s.interviewTitle || "Assessment Log"}
+                      </div>
+                      <div className="text-slate-400 text-sm font-black uppercase flex items-center gap-2 tracking-widest">
+                        <Tag size={16} className="text-indigo-400" /> {s.interviewCode} • {s.candidateEmail}
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-12 py-10 text-right flex items-center justify-end gap-12">
+                    <div className="text-right">
+                      <div className={`text-6xl font-black ${s.score >= 70 ? 'text-emerald-500' : 'text-amber-500'}`}>
+                        {s.score}%
+                      </div>
+                      <div className="text-xs font-black text-slate-300 uppercase tracking-widest mt-1">Final Performance</div>
+                    </div>
+                    <button 
+                      onClick={() => deleteItem('submission', s._id)} 
+                      className="p-4 text-slate-200 hover:text-rose-500 hover:bg-rose-50 rounded-2xl transition-all opacity-0 group-hover:opacity-100"
+                    >
+                      <Trash2 size={32}/>
+                    </button>
+                  </td>
+                </tr>
+              ))
             )}
           </tbody>
         </table>
+
+        {/* EMPTY STATE */}
+        {((tab === 'protocols' && data.interviews.length === 0) || (tab === 'submissions' && displayList.length === 0)) && (
+          <div className="py-32 text-center">
+            <div className="text-slate-200 font-black uppercase tracking-[0.5em] text-xl">System Empty / No Matches</div>
+          </div>
+        )}
       </div>
-      {isModalOpen && <RouteGenerator onClose={() => { setModalOpen(false); fetchData(); }} />}
+
+      {isModalOpen && <RouteGenerator onClose={() => { setModalOpen(false); refresh(); }} />}
     </div>
   );
 }
