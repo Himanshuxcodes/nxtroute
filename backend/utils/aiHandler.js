@@ -1,16 +1,18 @@
-const OpenAI = require("openai");
-const groq = new OpenAI({
-  apiKey: process.env.GROQ_API_KEY,
-  baseURL: "https://api.groq.com/openai/v1",
-});
-
 const generateQuestions = async (topic) => {
   try {
     const chatCompletion = await groq.chat.completions.create({
       messages: [
         {
           role: "system",
-          content: `Generate 15 EASY MCQs for: ${topic}. Return ONLY JSON: {"questions": [{"question": "...", "options": ["a", "b", "c", "d"], "correctAnswer": 0}]}`
+          content: `You are a Senior Software Engineer. Generate 15 EASY level technical coding MCQs about ${topic}.
+          
+          STRICT RULES:
+          1. Focus ONLY on syntax, logic, functions, and data structures.
+          2. No soft skills or "recruiter" questions.
+          3. Use small code snippets in the 'question' string whenever possible (use \n for line breaks).
+          4. Return ONLY a valid JSON object.
+          
+          Format: { "questions": [ { "question": "What is the output of: \n console.log(typeof []);", "options": ["object", "array", "null", "undefined"], "correctAnswer": 0 } ] }`
         }
       ],
       model: "llama-3.1-8b-instant",
@@ -18,12 +20,9 @@ const generateQuestions = async (topic) => {
     });
 
     const data = JSON.parse(chatCompletion.choices[0].message.content);
-    // Ensure it's exactly 15 or at least has data
-    return data.questions && data.questions.length > 0 ? data.questions : null;
+    return data.questions || null;
   } catch (error) {
-    console.error("GROQ_ERROR:", error.message);
+    console.error("AI Error:", error);
     return null;
   }
 };
-
-module.exports = { generateQuestions };

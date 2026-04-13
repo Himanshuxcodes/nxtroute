@@ -1,14 +1,16 @@
 const mongoose = require('mongoose');
 
-const submissionSchema = new mongoose.Schema({
-  candidateName: { type: String, required: true },
-  candidateEmail: { type: String, required: true },
-  interviewId: { type: mongoose.Schema.Types.ObjectId, ref: 'Interview' },
+const SubmissionSchema = new mongoose.Schema({
+  candidateName: String,
+  candidateEmail: { type: String, lowercase: true, trim: true }, 
+  interviewId: { type: mongoose.Schema.Types.ObjectId, required: true },
   interviewTitle: String,
-  interviewCode: String,
-  score: Number, // Percentage
-  wrongAnswers: Number,
+  score: Number,
+  wrongAnswers: { type: Number, default: 0 },
   submittedAt: { type: Date, default: Date.now }
 });
 
-module.exports = mongoose.model('Submission', submissionSchema);
+// Ensures one email can only submit ONCE per specific interview ID
+SubmissionSchema.index({ candidateEmail: 1, interviewId: 1 }, { unique: true });
+
+module.exports = mongoose.model('Submission', SubmissionSchema);
