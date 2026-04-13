@@ -9,10 +9,10 @@ export default function CandidateQuiz({ quizData, candidateInfo }) {
   const [finished, setFinished] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  // 🛡️ Guard: if data is invalid, show error
+  // 🛡️ Guard: invalid data
   if (!quizData || !quizData.questions || quizData.questions.length === 0) {
     return (
-      <div className="max-w-xl mx-auto mt-20 p-16 bg-white rounded-[3rem] shadow-2xl text-center">
+      <div className="max-w-xl mx-auto mt-20 p-16 bg-white rounded-3xl shadow-2xl text-center">
         <h2 className="text-2xl font-black text-red-600">Invalid Assessment Data</h2>
         <p className="mt-4">Please contact the administrator.</p>
       </div>
@@ -77,7 +77,7 @@ export default function CandidateQuiz({ quizData, candidateInfo }) {
 
   if (finished) {
     return (
-      <div className="max-w-xl mx-auto mt-20 p-16 bg-white rounded-[3rem] shadow-2xl text-center">
+      <div className="max-w-xl mx-auto mt-20 p-16 bg-white rounded-3xl shadow-2xl text-center">
         <div className="w-20 h-20 bg-emerald-500 rounded-3xl flex items-center justify-center mx-auto mb-8 text-white">
           <CheckCircle size={40} />
         </div>
@@ -95,46 +95,53 @@ export default function CandidateQuiz({ quizData, candidateInfo }) {
     );
   }
 
-  // 🛡️ Extra guard: if current index is out of bounds
+  // 🛡️ Guard for out‑of‑bounds index
   if (current >= totalQuestions) {
     return <div className="text-center mt-20">Loading next question...</div>;
   }
 
   const q = quizData.questions[current];
 
+  // ✅ Enhanced responsive UI (single return)
   return (
-    <div className="max-w-3xl mx-auto mt-12 p-12 bg-white rounded-[3rem] shadow-2xl border border-slate-100 relative overflow-hidden select-none">
+    <div className="max-w-3xl mx-auto mt-6 sm:mt-12 p-4 sm:p-12 bg-white rounded-3xl shadow-2xl border border-slate-100 relative overflow-hidden">
+      {/* Gradient progress bar */}
       <div
-        className="absolute top-0 left-0 h-1.5 bg-indigo-600 transition-all duration-1000 ease-linear"
-        style={{ width: `${(timeLeft / 20) * 100}%` }}
+        className="absolute top-0 left-0 h-2 bg-gradient-to-r from-indigo-500 to-purple-500 transition-all duration-300"
+        style={{ width: `${((current + 1) / totalQuestions) * 100}%` }}
       />
 
-      <div className="flex justify-between items-center mb-12">
-        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-600 bg-indigo-50 px-4 py-2 rounded-full">
-          Protocol Sequence {current + 1} / {totalQuestions}
+      {/* Header: responsive */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-8">
+        <span className="text-xs font-black uppercase tracking-wider text-indigo-600 bg-indigo-50 px-4 py-2 rounded-full">
+          Question {current + 1} of {totalQuestions}
         </span>
         <div
-          className={`flex items-center gap-2 font-mono text-2xl font-black ${
-            timeLeft < 6 ? 'text-rose-500 animate-pulse' : 'text-slate-900'
+          className={`flex items-center gap-2 font-mono text-xl font-black ${
+            timeLeft < 6 ? 'text-rose-500 animate-pulse' : 'text-slate-700'
           }`}
         >
-          <Timer size={24} /> {timeLeft}s
+          <Timer size={20} /> {timeLeft}s
         </div>
       </div>
 
-      <h3 className="text-3xl font-bold text-slate-900 leading-tight mb-12">{q.question}</h3>
+      <h3 className="text-xl sm:text-3xl font-bold text-slate-900 leading-tight mb-8">
+        {q.question}
+      </h3>
 
-      <div className="grid gap-4">
+      <div className="grid gap-3">
         {q.options.map((opt, i) => (
           <button
             key={i}
             onClick={() => handleNext(i)}
             disabled={submitting}
-            className="w-full text-left p-6 rounded-2xl border-2 border-slate-50 bg-slate-50 hover:border-indigo-500 hover:bg-indigo-50 transition-all group disabled:opacity-50"
+            className="w-full text-left p-4 sm:p-5 rounded-xl border-2 border-slate-100 bg-slate-50 hover:border-indigo-500 hover:bg-indigo-50 transition-all active:scale-[0.99] disabled:opacity-50 group"
           >
             <div className="flex items-center justify-between">
-              <span className="font-bold text-slate-700 group-hover:text-indigo-700">{opt}</span>
-              <div className="w-6 h-6 rounded-full border-2 border-slate-200 group-hover:border-indigo-500" />
+              <span className="font-medium text-slate-700 group-hover:text-indigo-700">
+                {opt}
+              </span>
+              <div className="w-5 h-5 rounded-full border-2 border-slate-300 group-hover:border-indigo-500" />
             </div>
           </button>
         ))}

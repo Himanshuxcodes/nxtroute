@@ -2,28 +2,41 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --bg: #f8fafc; /* Soft Slate/White */
-  --accent: #7c3aed; /* Deeper Violet for contrast */
-  --glass: rgba(255, 255, 255, 0.7);
-  --border: rgba(0, 0, 0, 0.05);
+@layer base {
+  :root {
+    --bg-gradient: linear-gradient(135deg, #f5f7ff 0%, #ffffff 100%);
+  }
+  
+  body {
+    background: var(--bg-gradient);
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  }
 }
 
-body {
-  background-color: var(--bg);
-  color: #1e293b;
-  font-family: 'Inter', system-ui, sans-serif;
+@layer components {
+  .glass-card {
+    @apply bg-white/80 backdrop-blur-md border border-white/20 shadow-xl;
+  }
+  
+  .hover-lift {
+    @apply transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl;
+  }
+}
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
-/* Updated Glass Panel for Light Mode */
-.glass-panel {
-  background: var(--glass);
-  backdrop-filter: blur(12px);
-  border: 1px solid var(--border);
-  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.04);
+.animate-fade-in-up {
+  animation: fadeInUp 0.6s ease-out forwards;
 }
 
-.hex-glow-light {
-  color: var(--accent);
-  text-shadow: 0 0 8px rgba(124, 58, 237, 0.2);
+.animation-delay-200 {
+  animation-delay: 0.2s;
 }
