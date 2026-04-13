@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Download, Layout, Users, Trash2, Plus, ListFilter, Tag, Bookmark } from 'lucide-react';
+import { Download, Layout, Users, Trash2, Plus, ListFilter, Tag, Bookmark, Copy, Check } from 'lucide-react'; // Added Copy/Check
 import API from '../api';
 import RouteGenerator from './RouteGenerator';
 
@@ -8,6 +8,7 @@ export default function ProtocolDashboard() {
   const [data, setData] = useState({ interviews: [], submissions: [] });
   const [filterCode, setFilterCode] = useState('ALL');
   const [isModalOpen, setModalOpen] = useState(false);
+  const [copyingId, setCopyingId] = useState(null); // Added for feedback
 
   const refresh = async () => {
     try {
@@ -22,6 +23,13 @@ export default function ProtocolDashboard() {
   };
 
   useEffect(() => { refresh(); }, []);
+
+  // COPY FUNCTION
+  const copyCode = (code, id) => {
+    navigator.clipboard.writeText(code);
+    setCopyingId(id);
+    setTimeout(() => setCopyingId(null), 2000);
+  };
 
   // STRICT FILTER LOGIC
   const displayList = filterCode === 'ALL' 
@@ -128,8 +136,17 @@ export default function ProtocolDashboard() {
                 <tr key={i._id} className="group hover:bg-slate-50 transition-colors">
                   <td className="px-12 py-10">
                     <div className="font-black text-2xl text-slate-900 mb-1">{i.title}</div>
-                    <div className="text-indigo-600 font-mono font-black text-lg bg-indigo-50 px-3 py-1 rounded-lg inline-block uppercase tracking-wider">
-                      {i.accessCode}
+                    <div className="flex items-center gap-2">
+                      <div className="text-indigo-600 font-mono font-black text-lg bg-indigo-50 px-3 py-1 rounded-lg inline-block uppercase tracking-wider">
+                        {i.accessCode}
+                      </div>
+                      {/* COPY BUTTON */}
+                      <button 
+                        onClick={() => copyCode(i.accessCode, i._id)}
+                        className={`p-1.5 rounded-lg transition-all ${copyingId === i._id ? 'text-emerald-500' : 'text-slate-300 hover:text-indigo-600'}`}
+                      >
+                        {copyingId === i._id ? <Check size={16}/> : <Copy size={16}/>}
+                      </button>
                     </div>
                   </td>
                   <td className="px-12 py-10 text-right">
