@@ -20,7 +20,7 @@ export default function CandidateQuiz({ quizData, candidateInfo }) {
     );
   }
 
-  const totalQuestions = quizData.questions.length;
+  const totalQuestions = quizData.questions.length;   // ✅ declared only once
 
   // 🛡️ Copy protection: disable context menu, copy, cut, paste, and keyboard shortcuts
   useEffect(() => {
@@ -33,25 +33,20 @@ export default function CandidateQuiz({ quizData, candidateInfo }) {
     };
 
     const handleKeyDown = (e) => {
-      // Block Ctrl+C, Ctrl+V, Ctrl+X, Cmd+C, Cmd+V, Cmd+X
       if ((e.ctrlKey || e.metaKey) && (e.key === 'c' || e.key === 'v' || e.key === 'x')) {
         e.preventDefault();
         return false;
       }
-      // Block F12 (DevTools) - optional but can be bypassed
       if (e.key === 'F12') {
         e.preventDefault();
         return false;
       }
     };
 
-    // Disable right-click
     container.addEventListener('contextmenu', preventDefault);
-    // Disable copy, cut, paste
     container.addEventListener('copy', preventDefault);
     container.addEventListener('cut', preventDefault);
     container.addEventListener('paste', preventDefault);
-    // Disable keyboard shortcuts
     document.addEventListener('keydown', handleKeyDown);
 
     return () => {
@@ -62,8 +57,6 @@ export default function CandidateQuiz({ quizData, candidateInfo }) {
       document.removeEventListener('keydown', handleKeyDown);
     };
   }, []);
-
-  const totalQuestions = quizData.questions.length;
 
   // Auto‑submit when time runs out
   useEffect(() => {
@@ -82,14 +75,12 @@ export default function CandidateQuiz({ quizData, candidateInfo }) {
     const updated = [...answers, choice];
     setAnswers(updated);
 
-    // Not last question → move to next
     if (current < totalQuestions - 1) {
       setCurrent(current + 1);
       setTimeLeft(20);
       return;
     }
 
-    // Last question – calculate and submit
     setSubmitting(true);
 
     const correct = updated.reduce((acc, val, i) => {
@@ -139,27 +130,23 @@ export default function CandidateQuiz({ quizData, candidateInfo }) {
     );
   }
 
-  // 🛡️ Guard for out‑of‑bounds index
   if (current >= totalQuestions) {
     return <div className="text-center mt-20">Loading next question...</div>;
   }
 
   const q = quizData.questions[current];
 
-  // ✅ Enhanced responsive UI with copy protection (user-select: none)
   return (
     <div
       ref={quizContainerRef}
       className="max-w-3xl mx-auto mt-6 sm:mt-12 p-4 sm:p-12 bg-white rounded-3xl shadow-2xl border border-slate-100 relative overflow-hidden select-none"
       style={{ userSelect: 'none', WebkitUserSelect: 'none' }}
     >
-      {/* Gradient progress bar */}
       <div
         className="absolute top-0 left-0 h-2 bg-gradient-to-r from-indigo-500 to-purple-500 transition-all duration-300"
         style={{ width: `${((current + 1) / totalQuestions) * 100}%` }}
       />
 
-      {/* Header: responsive */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-8">
         <span className="text-xs font-black uppercase tracking-wider text-indigo-600 bg-indigo-50 px-4 py-2 rounded-full">
           Question {current + 1} of {totalQuestions}
