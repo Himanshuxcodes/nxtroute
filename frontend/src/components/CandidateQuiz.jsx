@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Timer, CheckCircle } from 'lucide-react';
 import API from '../api';
 
@@ -8,6 +8,7 @@ export default function CandidateQuiz({ quizData, candidateInfo }) {
   const [timeLeft, setTimeLeft] = useState(20);
   const [finished, setFinished] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const quizContainerRef = useRef(null);
 
   // 🛡️ Guard: invalid data
   if (!quizData || !quizData.questions || quizData.questions.length === 0) {
@@ -18,6 +19,49 @@ export default function CandidateQuiz({ quizData, candidateInfo }) {
       </div>
     );
   }
+
+  const totalQuestions = quizData.questions.length;
+
+  // 🛡️ Copy protection: disable context menu, copy, cut, paste, and keyboard shortcuts
+  useEffect(() => {
+    const container = quizContainerRef.current;
+    if (!container) return;
+
+    const preventDefault = (e) => {
+      e.preventDefault();
+      return false;
+    };
+
+    const handleKeyDown = (e) => {
+      // Block Ctrl+C, Ctrl+V, Ctrl+X, Cmd+C, Cmd+V, Cmd+X
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'c' || e.key === 'v' || e.key === 'x')) {
+        e.preventDefault();
+        return false;
+      }
+      // Block F12 (DevTools) - optional but can be bypassed
+      if (e.key === 'F12') {
+        e.preventDefault();
+        return false;
+      }
+    };
+
+    // Disable right-click
+    container.addEventListener('contextmenu', preventDefault);
+    // Disable copy, cut, paste
+    container.addEventListener('copy', preventDefault);
+    container.addEventListener('cut', preventDefault);
+    container.addEventListener('paste', preventDefault);
+    // Disable keyboard shortcuts
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      container.removeEventListener('contextmenu', preventDefault);
+      container.removeEventListener('copy', preventDefault);
+      container.removeEventListener('cut', preventDefault);
+      container.removeEventListener('paste', preventDefault);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
 
   const totalQuestions = quizData.questions.length;
 
@@ -102,9 +146,13 @@ export default function CandidateQuiz({ quizData, candidateInfo }) {
 
   const q = quizData.questions[current];
 
-  // ✅ Enhanced responsive UI (single return)
+  // ✅ Enhanced responsive UI with copy protection (user-select: none)
   return (
-    <div className="max-w-3xl mx-auto mt-6 sm:mt-12 p-4 sm:p-12 bg-white rounded-3xl shadow-2xl border border-slate-100 relative overflow-hidden">
+    <div
+      ref={quizContainerRef}
+      className="max-w-3xl mx-auto mt-6 sm:mt-12 p-4 sm:p-12 bg-white rounded-3xl shadow-2xl border border-slate-100 relative overflow-hidden select-none"
+      style={{ userSelect: 'none', WebkitUserSelect: 'none' }}
+    >
       {/* Gradient progress bar */}
       <div
         className="absolute top-0 left-0 h-2 bg-gradient-to-r from-indigo-500 to-purple-500 transition-all duration-300"
